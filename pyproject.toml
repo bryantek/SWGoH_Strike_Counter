@@ -15,5 +15,6 @@ maintainers = [
 
 # Core project dependencies (Production)
 dependencies = [
-    "pandas>=3.0.0"
+    "pandas>=3.0.0",
+    "openpyxl>=3.0.0"
 ]

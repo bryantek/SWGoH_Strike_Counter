@@ -1,5 +1,9 @@
 # Mac OS specific file
 .DS_STORE
 
+# Temp files
+__pycache__*
+*.egg-info
+
 # Storage of Reports from which to Collate Strikes
 reports/
