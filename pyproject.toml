@@ -1,0 +1,19 @@
+[project]
+name = "SWGOH_Strike_Counter"
+version = "0.1.0"
+description = "Collate Strikes from Reports"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["awesome", "project", "template"]
+authors = [
+    { name = "Bryan Ek", email = "bryantylerek@gmail.com" }
+]
+maintainers = [
+    { name = "Bryan Ek", email = "bryantylerek@gmail.com" }
+]
+
+# Core project dependencies (Production)
+dependencies = [
+    "pandas>=3.0.0"
+]

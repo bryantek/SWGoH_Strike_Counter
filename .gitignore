@@ -1,0 +1,5 @@
+# Mac OS specific file
+.DS_STORE
+
+# Storage of Reports from which to Collate Strikes
+reports/
