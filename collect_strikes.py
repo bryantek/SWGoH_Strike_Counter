@@ -1,16 +1,28 @@
-import pandas as pd
-import os
 import glob
-from GUILD_THRESHOLDS import MINIMUM_CM_WAVES, MINIMUM_CM_WAVES_DOUBLE_STRIKE, MINIMUM_DEPLOY_THRESHOLD, MINIMUM_RAID_SCORE, MINIMUM_TICKET_COUNT, MINIMUM_TW_ATTACK_BANNERS, MINIMUM_TW_ATTACK_COUNT, MINIMUM_TW_BANNERS, MINIMUM_TW_DEFENSE_BANNERS
-from member_profile import GuildMember
+import os
+import pandas as pd
 import time
+from GUILD_THRESHOLDS import (
+    MINIMUM_CM_WAVES, 
+    MINIMUM_CM_WAVES_DOUBLE_STRIKE, 
+    MINIMUM_CM_WAVES_NEGATIVE_STRIKE,
+    NEGATIVE_STRIKE_FOR_SM_SUCCESS,
+    MINIMUM_DEPLOY_THRESHOLD, 
+    MINIMUM_RAID_SCORE, 
+    MINIMUM_RAID_SCORE_DOUBLE_STRIKE, 
+    MINIMUM_TICKET_COUNT, 
+    MINIMUM_TW_ATTACK_BANNERS, 
+    MINIMUM_TW_ATTACK_COUNT, 
+    MINIMUM_TW_BANNERS, 
+    MINIMUM_TW_DEFENSE_BANNERS
+)
 
 
 def gather_strikes(reports_dir: str="Reports"):
     guild_member_strikes: dict[int,int] = {}  # ally code as key. strike count as value.
     allycode_to_name: dict[int,str] = {}
 
-    # Load CSV files (Territory War/General stats/TB Stats/Raid Stats)
+    # Load CSV files (Territory War/Tickets/Territory Battle/Raid)
     csv_files = glob.glob(os.path.join(reports_dir, "*.csv"))
     for file_path in csv_files:
         file_name = os.path.basename(file_path)
@@ -35,12 +47,17 @@ def gather_strikes(reports_dir: str="Reports"):
             guild_member_strikes[key] = guild_member_strikes.get(key, 0) + val
     return guild_member_strikes, allycode_to_name
 
-def parse_ticket_count(x: str):
-    if x=='-':
-        return 600
-    return int(x)
-
 def collect_ticket_strikes(data: pd.DataFrame):
+    """
+    """
+    def parse_ticket_count(x: str):
+        """ A helper function for collect_ticket_strikes.
+        If a member was not in the guild for all past days, then their count is "-".
+        This gets parsed to 600 so they don't receive a strike.
+        """
+        if x=='-':
+            return 600
+        return int(x)
     # Loop through the ticket tracking file and collect daily strikes.
     daily_strike = data.iloc[:,5:].map(lambda x: parse_ticket_count(x)<MINIMUM_TICKET_COUNT)
     total_strikes = daily_strike.apply(lambda row: sum(row), axis=1)
@@ -71,15 +88,18 @@ def collect_tw_strikes(data: pd.DataFrame):
     return total_tw_strikes, dict(zip(data["AllyCode"],data["Name"]))
 
 def collect_raid_strikes(data: pd.DataFrame):
+    """
+
+    """
     # Loop through the file and collect strikes based on the raid.
     total_raid_strikes = dict.fromkeys(set(data["AllyCode"]).difference([0]), 0)
     for row in data.itertuples():
-        # print(row)
         # All raids captured have already been completed.
         if row.AllyCode == 0:  # The player is no longer in the guild.
             continue
-        if row.Score < MINIMUM_RAID_SCORE:
-            # print(f"{row.AllyCode} ------ {row.Score}")
+        if row.Score < MINIMUM_RAID_SCORE_DOUBLE_STRIKE:
+            total_raid_strikes[row.AllyCode] += 2
+        elif row.Score < MINIMUM_RAID_SCORE:
             total_raid_strikes[row.AllyCode] += 1
     return total_raid_strikes, dict(zip(data["AllyCode"],data["Name"]))
 
@@ -90,26 +110,30 @@ def collect_tb_strikes(data: pd.DataFrame):
     for row in data.itertuples():
         match row.MapStatId:
             case "strike_encounter":
-                if row.Score < MINIMUM_CM_WAVES_DOUBLE_STRIKE:
+                if row.Score >= MINIMUM_CM_WAVES_NEGATIVE_STRIKE:
+                    total_tb_strikes[row.AllyCode] -= 1
+                elif row.Score < MINIMUM_CM_WAVES_DOUBLE_STRIKE:
                     total_tb_strikes[row.AllyCode] += 2
-                elif MINIMUM_CM_WAVES:
+                elif row.Score < MINIMUM_CM_WAVES:
                     total_tb_strikes[row.AllyCode] += 1
+            
             case "covert_results_round_1":
-                total_tb_strikes[row.AllyCode] -= row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
             case "covert_results_round_2":
                 if "Cere/Cal Kestis:Unattempted" in row.SpecialResults:
                     total_tb_strikes[row.AllyCode] += 1
-                total_tb_strikes[row.AllyCode] -= row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
             case "covert_results_round_3":
                 if "Bo/BAM Mandalore Unlock:Unattempted" in row.SpecialResults:
                     total_tb_strikes[row.AllyCode] += 1
-                total_tb_strikes[row.AllyCode] -= row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
             case "covert_results_round_4":
-                total_tb_strikes[row.AllyCode] -= row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
             case "covert_results_round_5":
-                total_tb_strikes[row.AllyCode] -= row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
             case "covert_results_round_6":
-                total_tb_strikes[row.AllyCode] -= row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
+            
             case "power_round_2":  # I would love to combine this with the other power_round_#
                 if row.Score >= MINIMUM_DEPLOY_THRESHOLD:
                     total_tb_strikes[row.AllyCode] -= 2
@@ -129,7 +153,7 @@ def collect_tb_strikes(data: pd.DataFrame):
                 continue
     return total_tb_strikes, dict(zip(data["AllyCode"],data["Name"]))
 
-def print_for_discord(strike_counts, allycode_to_name_decoder):
+def print_all_strike_counts(strike_counts, allycode_to_name_decoder):
     sorted_dict = dict(sorted(strike_counts.items(), key=lambda item: -item[1]))
     for allycode, strike_count in sorted_dict.items():
         print(f"{strike_count} --- {allycode_to_name_decoder[allycode]} : {allycode}")
@@ -137,7 +161,7 @@ def print_for_discord(strike_counts, allycode_to_name_decoder):
 def main():
     strike_counts, allycode_to_name_decoder = gather_strikes()
     print("Printing strike counts:")
-    print_for_discord(strike_counts, allycode_to_name_decoder)
+    print_all_strike_counts(strike_counts, allycode_to_name_decoder)
 
 if __name__ == "__main__":
     main()
