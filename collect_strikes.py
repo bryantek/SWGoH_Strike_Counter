@@ -19,6 +19,15 @@ from GUILD_THRESHOLDS import (
 
 
 def gather_strikes(reports_dir: str="Reports"):
+    """
+    Gathers strike counts for guild members from various reports.
+
+    Args:
+        reports_dir (str): Directory containing the reports.
+
+    Returns:
+        tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
+    """
     guild_member_strikes: dict[int,int] = {}  # ally code as key. strike count as value.
     allycode_to_name: dict[int,str] = {}
 
@@ -49,7 +58,15 @@ def gather_strikes(reports_dir: str="Reports"):
 
 def collect_ticket_strikes(data: pd.DataFrame):
     """
+    Collects strike counts from ticket tracking data.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing ticket tracking data.
+
+    Returns:
+        tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
     """
+
     def parse_ticket_count(x: str):
         """ A helper function for collect_ticket_strikes.
         If a member was not in the guild for all past days, then their count is "-".
@@ -64,6 +81,15 @@ def collect_ticket_strikes(data: pd.DataFrame):
     return dict(zip(data["AllyCode"], total_strikes)), dict(zip(data["AllyCode"],data["Name"]))
 
 def collect_tw_strikes(data: pd.DataFrame):
+    """
+    Collects strike counts from Territory War data.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing Territory War data.
+
+    Returns:
+        tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
+    """
     # Loop through the file and collect strikes based on the TW.
     total_tw_strikes = dict.fromkeys(set(data["AllyCode"]).difference([0]), 0)
     for row in data.itertuples():
@@ -89,7 +115,13 @@ def collect_tw_strikes(data: pd.DataFrame):
 
 def collect_raid_strikes(data: pd.DataFrame):
     """
+    Collects strike counts from Raid data.
 
+    Args:
+        data (pd.DataFrame): DataFrame containing Raid data.
+
+    Returns:
+        tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
     """
     # Loop through the file and collect strikes based on the raid.
     total_raid_strikes = dict.fromkeys(set(data["AllyCode"]).difference([0]), 0)
@@ -104,7 +136,17 @@ def collect_raid_strikes(data: pd.DataFrame):
     return total_raid_strikes, dict(zip(data["AllyCode"],data["Name"]))
 
 def collect_tb_strikes(data: pd.DataFrame):
+    """
+    Collects strike counts from Territory Battle data.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing Territory Battle data.
+
+    Returns:
+        tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
+    """
     # Loop through the file and collect strikes based on the TB.
+    # This uses the csv output from HotUtils. Potentially the excel output has more information.
     # Everyone starts with 10 strikes. Each time they deploy in phases 2-6, they remove 2 strikes.
     total_tb_strikes = dict.fromkeys(set(data["AllyCode"]).difference([0]), 10)
     for row in data.itertuples():
@@ -154,6 +196,13 @@ def collect_tb_strikes(data: pd.DataFrame):
     return total_tb_strikes, dict(zip(data["AllyCode"],data["Name"]))
 
 def print_all_strike_counts(strike_counts, allycode_to_name_decoder):
+    """
+    Prints all strike counts in descending order.
+
+    Args:
+        strike_counts (dict): Dictionary containing ally code and strike counts.
+        allycode_to_name_decoder (dict): Dictionary containing ally code and names.
+    """
     sorted_dict = dict(sorted(strike_counts.items(), key=lambda item: -item[1]))
     for allycode, strike_count in sorted_dict.items():
         print(f"{strike_count} --- {allycode_to_name_decoder[allycode]} : {allycode}")

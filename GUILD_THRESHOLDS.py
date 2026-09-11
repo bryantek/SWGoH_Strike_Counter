@@ -21,7 +21,7 @@ MINIMUM_TICKET_COUNT = 600
 
 ####### TW METRICS #######
 # Minimum targets for TW.
-# This is measured by rogue_actions ("disobey").
+# Attack count is measured by rogue_actions ("disobey").
 MINIMUM_TW_ATTACK_COUNT = 4
 MINIMUM_TW_ATTACK_BANNERS = 0
 MINIMUM_TW_DEFENSE_BANNERS = 200
