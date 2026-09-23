@@ -1,3 +1,4 @@
+import argparse
 import glob
 import os
 import pandas as pd
@@ -14,16 +15,22 @@ from GUILD_THRESHOLDS import (
     MINIMUM_TW_ATTACK_BANNERS, 
     MINIMUM_TW_ATTACK_COUNT, 
     MINIMUM_TW_BANNERS, 
-    MINIMUM_TW_DEFENSE_BANNERS
+    MINIMUM_TW_DEFENSE_BANNERS,
+    MINIMUM_TW_ALL_DEFENSE_BANNERS
 )
 
 
-def gather_strikes(reports_dir: str="Reports"):
+def gather_strikes(reports_dir: str="Reports", reference_file: str = None):
     """
     Gathers strike counts for guild members from various reports.
 
     Args:
-        reports_dir (str): Directory containing the reports.
+        reports_dir (str): Directory containing the reports. Default: "Reports".
+        reference_file (str): if None, collects information on all members in all reports.
+                                If specified, only those members listed in the reference file. Usually the most recent tickets file.
+                                    Technically the information is collected on everyone, but only the specified ones are returned.
+                                Assumes that the reference file lives within the reports_dir.
+                                If the reference file doesn't exist, then it is the same as reference_file=None.
 
     Returns:
         tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
@@ -32,6 +39,7 @@ def gather_strikes(reports_dir: str="Reports"):
     allycode_to_name: dict[int,str] = {}
 
     # Load CSV files (Territory War/Tickets/Territory Battle/Raid)
+    guild_members_set: set[int] = None
     csv_files = glob.glob(os.path.join(reports_dir, "*.csv"))
     for file_path in csv_files:
         file_name = os.path.basename(file_path)
@@ -40,21 +48,27 @@ def gather_strikes(reports_dir: str="Reports"):
             data = pd.read_csv(file_path, encoding='utf-8')
         except:  # This appears to catch the tickets file that hotutils exports.
             data = pd.read_csv(file_path, sep='\t', encoding='utf-16')
-        match file_name[:7]:
-            case "tickets":  # Daily Tickets
+        if file_name == reference_file:  # To avoid loading it again later.
+            guild_members_set: set[int] = set(data["AllyCode"])
+        match file_name:
+            case str() if file_name.startswith("tickets"):  # Daily Tickets
                 strike_counts, new_allycode_to_name = collect_ticket_strikes(data)
-            case "twstats":  # TW
+            case str() if file_name.startswith("tw"):  # TW
                 strike_counts, new_allycode_to_name = collect_tw_strikes(data)
-            case "raidsta":  # Raid
+            case str() if file_name.startswith("raid"):  # Raid
                 strike_counts, new_allycode_to_name = collect_raid_strikes(data)
-            case "tbstats":  # TB
+            case str() if file_name.startswith("tb"):  # TB
                 strike_counts, new_allycode_to_name = collect_tb_strikes(data)
             case _:  # Ignore anything else. Skip to the next file in the loop.
                 continue
         allycode_to_name.update(new_allycode_to_name)
         for key, val in strike_counts.items():  # There is probably a more efficient way.
             guild_member_strikes[key] = guild_member_strikes.get(key, 0) + val
-    return guild_member_strikes, allycode_to_name
+    
+    if guild_members_set is None:  # Don't need to filter. Either there wasn't a file to filter, or the file doesn't exist.
+        return guild_member_strikes, allycode_to_name
+    else:
+        return {k: guild_member_strikes[k] for k in guild_members_set}, {k: allycode_to_name[k] for k in guild_members_set}
 
 def collect_ticket_strikes(data: pd.DataFrame):
     """
@@ -101,7 +115,9 @@ def collect_tw_strikes(data: pd.DataFrame):
                 if row.Score < MINIMUM_TW_BANNERS:
                     total_tw_strikes[row.AllyCode] += 1
             case "set_defense_stars":
-                if row.Score < MINIMUM_TW_DEFENSE_BANNERS:
+                if row.Score >= MINIMUM_TW_ALL_DEFENSE_BANNERS:
+                    total_tw_strikes[row.AllyCode] -= 1
+                elif row.Score < MINIMUM_TW_DEFENSE_BANNERS:
                     total_tw_strikes[row.AllyCode] += 1
             case "attack_stars":
                 if row.Score < MINIMUM_TW_ATTACK_BANNERS:
@@ -176,7 +192,7 @@ def collect_tb_strikes(data: pd.DataFrame):
             case "covert_results_round_6":
                 total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
             
-            case "power_round_2":  # I would love to combine this with the other power_round_#
+            case "power_round_2":  # I would love to combine this with the other power_round_# cases.
                 if row.Score >= MINIMUM_DEPLOY_THRESHOLD:
                     total_tb_strikes[row.AllyCode] -= 2
             case "power_round_3":
@@ -208,7 +224,11 @@ def print_all_strike_counts(strike_counts, allycode_to_name_decoder):
         print(f"{strike_count} --- {allycode_to_name_decoder[allycode]} : {allycode}")
 
 def main():
-    strike_counts, allycode_to_name_decoder = gather_strikes()
+    parser = argparse.ArgumentParser(description="A basic script to collate information from HotUtils reports of a SWGoH guild.")
+    parser.add_argument("-reference_file", type=str, default=None, help="The path to the reference file of which guild members to include.")
+    args = parser.parse_args()
+
+    strike_counts, allycode_to_name_decoder = gather_strikes(reference_file=args.reference_file)
     print("Printing strike counts:")
     print_all_strike_counts(strike_counts, allycode_to_name_decoder)
 

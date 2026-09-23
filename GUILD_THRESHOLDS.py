@@ -25,4 +25,6 @@ MINIMUM_TICKET_COUNT = 600
 MINIMUM_TW_ATTACK_COUNT = 4
 MINIMUM_TW_ATTACK_BANNERS = 0
 MINIMUM_TW_DEFENSE_BANNERS = 200
+# If you provide this much defense, you get a negative strike (to counteract getting a strike for missing attack).
+MINIMUM_TW_ALL_DEFENSE_BANNERS = 600
 MINIMUM_TW_BANNERS = 0
