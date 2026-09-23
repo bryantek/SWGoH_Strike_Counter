@@ -59,6 +59,8 @@ def gather_strikes(reports_dir: str="Reports", reference_file: str = None):
                 strike_counts, new_allycode_to_name = collect_raid_strikes(data)
             case str() if file_name.startswith("tb"):  # TB
                 strike_counts, new_allycode_to_name = collect_tb_strikes(data)
+            case str() if file_name.startswith("manual"):  # TB
+                strike_counts, new_allycode_to_name = collect_manual_strikes(data)
             case _:  # Ignore anything else. Skip to the next file in the loop.
                 continue
         allycode_to_name.update(new_allycode_to_name)
@@ -76,11 +78,11 @@ def collect_ticket_strikes(data: pd.DataFrame):
 
     Args:
         data (pd.DataFrame): DataFrame containing ticket tracking data.
+                            Format is assumed to be that of exporting to csv from the Guild->Tickets section of HotUtils' website
 
     Returns:
         tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
     """
-
     def parse_ticket_count(x: str):
         """ A helper function for collect_ticket_strikes.
         If a member was not in the guild for all past days, then their count is "-".
@@ -100,6 +102,7 @@ def collect_tw_strikes(data: pd.DataFrame):
 
     Args:
         data (pd.DataFrame): DataFrame containing Territory War data.
+                            Format is assumed to be that of running the hotbot command "/tw stats"
 
     Returns:
         tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
@@ -135,6 +138,7 @@ def collect_raid_strikes(data: pd.DataFrame):
 
     Args:
         data (pd.DataFrame): DataFrame containing Raid data.
+                            Format is assumed to be that of running the hotbot command "/raids download"
 
     Returns:
         tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
@@ -157,6 +161,7 @@ def collect_tb_strikes(data: pd.DataFrame):
 
     Args:
         data (pd.DataFrame): DataFrame containing Territory Battle data.
+                            Format is assumed to be that of running the hotbot command "/tb stats"
 
     Returns:
         tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
@@ -165,7 +170,7 @@ def collect_tb_strikes(data: pd.DataFrame):
     # This uses the csv output from HotUtils. Potentially the excel output has more information.
     # Everyone starts with 10 strikes. Each time they deploy in phases 2-6, they remove 2 strikes.
     total_tb_strikes = dict.fromkeys(set(data["AllyCode"]).difference([0]), 10)
-    for row in data.itertuples():
+    for row in data.itertuples():  # There is likely a more efficient way to apply functions to this dataframe.
         match row.MapStatId:
             case "strike_encounter":
                 if row.Score >= MINIMUM_CM_WAVES_NEGATIVE_STRIKE:
@@ -210,6 +215,19 @@ def collect_tb_strikes(data: pd.DataFrame):
             case _:  # Ignore values we don't care about.
                 continue
     return total_tb_strikes, dict(zip(data["AllyCode"],data["Name"]))
+
+def collect_manual_strikes(data: pd.DataFrame):
+    """
+    Collects strike counts from a csv.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing manual adjustments to strike counts.
+                            Assumes the format is 3 columns: AllyCode, Name, StrikeCount
+
+    Returns:
+        tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
+    """
+    return dict(zip(data["AllyCode"],data["StrikeCount"])), dict(zip(data["AllyCode"],data["Name"]))
 
 def print_all_strike_counts(strike_counts, allycode_to_name_decoder):
     """
