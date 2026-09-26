@@ -57,6 +57,21 @@ def highlight_tw_performers(data: pd.DataFrame) -> pd.DataFrame:
     """
     return pd.DataFrame()
 
+def highlight_raid_performers(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    From a raid report from hotutils, highlight
+        the player who achieved the highest score
+        the player who won the raid "lottery" (see highlight_tb_performers)
+
+    Args:
+        data (pd.DataFrame): DataFrame containing Raid data.
+                            Format is assumed to be that of running the hotbot command "/raids download"
+
+    Returns:
+        dataframe: A dataframe with allycode as the index and strike counts and allyname in respective columns.
+    """
+    return pd.DataFrame()
+
 def print_report_to_csv(strike_counts: pd.DataFrame, file_name: str) -> None:
     """
     Takes the strike_counts (usually created by highlight_X_performers) and prints to a csv for later use in collect_strikes.py.
@@ -89,10 +104,12 @@ def main():
             strike_counts = highlight_tb_performers(data)
         case "tw":
             strike_counts = highlight_tw_performers(data)
+        case "raid":
+            strike_counts = highlight_raid_performers(data)
         case _:
-            print("This function requires you to specify if 'tw' or 'tb' (no other option).")
+            print("This function requires you to specify if 'tw' or 'tb' or 'raid' (no other option).")
             return
-    print_report_to_csv(data)
+    print_report_to_csv(strike_counts)
     print("Saved top performer information to ...")
 
 if __name__ == "__main__":
