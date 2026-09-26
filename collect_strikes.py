@@ -59,7 +59,7 @@ def gather_strikes(reports_dir: str="Reports", reference_file: str = None):
                 strike_counts, new_allycode_to_name = collect_raid_strikes(data)
             case str() if file_name.startswith("tb"):  # TB
                 strike_counts, new_allycode_to_name = collect_tb_strikes(data)
-            case str() if file_name.startswith("manual"):  # TB
+            case str() if file_name.startswith("manual"):  # Manual
                 strike_counts, new_allycode_to_name = collect_manual_strikes(data)
             case _:  # Ignore anything else. Skip to the next file in the loop.
                 continue
@@ -219,6 +219,7 @@ def collect_tb_strikes(data: pd.DataFrame):
 def collect_manual_strikes(data: pd.DataFrame):
     """
     Collects strike counts from a csv.
+    These files may be outputs of top_performers.py but can be manually created.
 
     Args:
         data (pd.DataFrame): DataFrame containing manual adjustments to strike counts.
