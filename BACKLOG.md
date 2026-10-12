@@ -14,6 +14,7 @@ This is a list of improvements to be made.
  - Specific special mission checks are currently by round. E.g. if your guild attempts the Zeffo Unlock SM in phase 3, this script incorrectly checks for the attempt in phase 2.
  - Add unit tests
  - Add a better tracking of allycode->Name logic. Maybe make a "Member" class that contains allycode (unique id), name, and strike count. Potentially a full list of actions for each member.
+ - Add an option for leave of absence. Import from a file that lists leave of absence for players and time and then ignores those data points from that time period.
 
  # Implemented
 
