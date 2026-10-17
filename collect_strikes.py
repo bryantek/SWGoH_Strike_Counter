@@ -20,7 +20,7 @@ from GUILD_THRESHOLDS import (
 )
 
 
-def gather_strikes(reports_dir: str="Reports", reference_file: str = None):
+def gather_strikes(reports_dir: str="Reports", reference_file: str = None, ally_code_to_highlight: int = None):
     """
     Gathers strike counts for guild members from various reports.
 
@@ -31,6 +31,7 @@ def gather_strikes(reports_dir: str="Reports", reference_file: str = None):
                                     Technically the information is collected on everyone, but only the specified ones are returned.
                                 Assumes that the reference file lives within the reports_dir.
                                 If the reference file doesn't exist, then it is the same as reference_file=None.
+        ally_code_to_highlight (int): if not None, then every strike worthy action taken by the ally_code_to_highlight is printed during collation.
 
     Returns:
         tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
@@ -52,15 +53,15 @@ def gather_strikes(reports_dir: str="Reports", reference_file: str = None):
             guild_members_set: set[int] = set(data["AllyCode"])
         match file_name:
             case str() if file_name.startswith("tickets"):  # Daily Tickets
-                strike_counts, new_allycode_to_name = collect_ticket_strikes(data)
+                strike_counts, new_allycode_to_name = collect_ticket_strikes(data, ally_code_to_highlight)
             case str() if file_name.startswith("tw"):  # TW
-                strike_counts, new_allycode_to_name = collect_tw_strikes(data)
+                strike_counts, new_allycode_to_name = collect_tw_strikes(data, ally_code_to_highlight)
             case str() if file_name.startswith("raid"):  # Raid
-                strike_counts, new_allycode_to_name = collect_raid_strikes(data)
+                strike_counts, new_allycode_to_name = collect_raid_strikes(data, ally_code_to_highlight)
             case str() if file_name.startswith("tb"):  # TB
-                strike_counts, new_allycode_to_name = collect_tb_strikes(data)
+                strike_counts, new_allycode_to_name = collect_tb_strikes(data, ally_code_to_highlight)
             case str() if file_name.startswith("manual"):  # TB
-                strike_counts, new_allycode_to_name = collect_manual_strikes(data)
+                strike_counts, new_allycode_to_name = collect_manual_strikes(data, ally_code_to_highlight)
             case _:  # Ignore anything else. Skip to the next file in the loop.
                 continue
         allycode_to_name.update(new_allycode_to_name)
@@ -72,7 +73,7 @@ def gather_strikes(reports_dir: str="Reports", reference_file: str = None):
     else:
         return {k: guild_member_strikes[k] for k in guild_members_set}, {k: allycode_to_name[k] for k in guild_members_set}
 
-def collect_ticket_strikes(data: pd.DataFrame):
+def collect_ticket_strikes(data: pd.DataFrame, ally_code_to_highlight):
     """
     Collects strike counts from ticket tracking data.
 
@@ -96,7 +97,7 @@ def collect_ticket_strikes(data: pd.DataFrame):
     total_strikes = daily_strike.apply(lambda row: sum(row), axis=1)
     return dict(zip(data["AllyCode"], total_strikes)), dict(zip(data["AllyCode"],data["Name"]))
 
-def collect_tw_strikes(data: pd.DataFrame):
+def collect_tw_strikes(data: pd.DataFrame, ally_code_to_highlight):
     """
     Collects strike counts from Territory War data.
 
@@ -117,22 +118,32 @@ def collect_tw_strikes(data: pd.DataFrame):
             case "stars":
                 if row.Score < MINIMUM_TW_BANNERS:
                     total_tw_strikes[row.AllyCode] += 1
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} received less than minimum tw banners.")
             case "set_defense_stars":
                 if row.Score >= MINIMUM_TW_ALL_DEFENSE_BANNERS:
                     total_tw_strikes[row.AllyCode] -= 1
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} received more than minimum all defense tw banners.")
                 elif row.Score < MINIMUM_TW_DEFENSE_BANNERS:
                     total_tw_strikes[row.AllyCode] += 1
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} received less than minimum defense tw banners.")
             case "attack_stars":
                 if row.Score < MINIMUM_TW_ATTACK_BANNERS:
                     total_tw_strikes[row.AllyCode] += 1
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} received less than minimum attack tw banners.")
             case "disobey":
                 if row.Score < MINIMUM_TW_ATTACK_COUNT:
                     total_tw_strikes[row.AllyCode] += 1
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} received less than minimum attack tw count.")
             case _:  # Ignore values I don't know about. Maybe print an error message.
                 continue
     return total_tw_strikes, dict(zip(data["AllyCode"],data["Name"]))
 
-def collect_raid_strikes(data: pd.DataFrame):
+def collect_raid_strikes(data: pd.DataFrame, ally_code_to_highlight):
     """
     Collects strike counts from Raid data.
 
@@ -151,11 +162,15 @@ def collect_raid_strikes(data: pd.DataFrame):
             continue
         if row.Score < MINIMUM_RAID_SCORE_DOUBLE_STRIKE:
             total_raid_strikes[row.AllyCode] += 2
+            if ally_code_to_highlight == row.AllyCode:
+                print(f"AllyCode {row.AllyCode} received less than minimum raid score double strike.")
         elif row.Score < MINIMUM_RAID_SCORE:
             total_raid_strikes[row.AllyCode] += 1
+            if ally_code_to_highlight == row.AllyCode:
+                print(f"AllyCode {row.AllyCode} received less than minimum raid score single strike.")
     return total_raid_strikes, dict(zip(data["AllyCode"],data["Name"]))
 
-def collect_tb_strikes(data: pd.DataFrame):
+def collect_tb_strikes(data: pd.DataFrame, ally_code_to_highlight):
     """
     Collects strike counts from Territory Battle data.
 
@@ -175,48 +190,86 @@ def collect_tb_strikes(data: pd.DataFrame):
             case "strike_encounter":
                 if row.Score >= MINIMUM_CM_WAVES_NEGATIVE_STRIKE:
                     total_tb_strikes[row.AllyCode] -= 1
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} received more than minimum cm waves negative strike.")
                 elif row.Score < MINIMUM_CM_WAVES_DOUBLE_STRIKE:
                     total_tb_strikes[row.AllyCode] += 2
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} received less than minimum cm waves double strike.")
                 elif row.Score < MINIMUM_CM_WAVES:
                     total_tb_strikes[row.AllyCode] += 1
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} received less than minimum cm waves single strike.")
             
             case "covert_results_round_1":
-                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
+                success_count = row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * success_count
+                if success_count > 0 and ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} completed {success_count} SM(s) successfully in round 1.")
             case "covert_results_round_2":
                 if "Cere/Cal Kestis:Unattempted" in row.SpecialResults:
                     total_tb_strikes[row.AllyCode] += 1
-                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} did not attempt Zeffo unlock SM.")
+                success_count = row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * success_count
+                if success_count > 0 and ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} completed {success_count} SM(s) successfully in round 2.")
             case "covert_results_round_3":
                 if "Bo/BAM Mandalore Unlock:Unattempted" in row.SpecialResults:
                     total_tb_strikes[row.AllyCode] += 1
-                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
+                    if ally_code_to_highlight == row.AllyCode:
+                        print(f"AllyCode {row.AllyCode} did not attempt Mandalore unlock SM.")
+                success_count = row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * success_count
+                if success_count > 0 and ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} completed {success_count} SM(s) successfully in round 3.")
             case "covert_results_round_4":
-                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
+                success_count = row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * success_count
+                if success_count > 0 and ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} completed {success_count} SM(s) successfully in round 4.")
             case "covert_results_round_5":
-                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
+                success_count = row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * success_count
+                if success_count > 0 and ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} completed {success_count} SM(s) successfully in round 5.")
             case "covert_results_round_6":
-                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * row.SpecialResults.count("Succeeded")
+                success_count = row.SpecialResults.count("Succeeded")
+                total_tb_strikes[row.AllyCode] -= NEGATIVE_STRIKE_FOR_SM_SUCCESS * success_count
+                if success_count > 0 and ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} completed {success_count} SM(s) successfully in round 6.")
             
             case "power_round_2":  # I would love to combine this with the other power_round_# cases.
                 if row.Score >= MINIMUM_DEPLOY_THRESHOLD:
                     total_tb_strikes[row.AllyCode] -= 2
+                elif ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} did not deploy in phase 2.")
             case "power_round_3":
                 if row.Score >= MINIMUM_DEPLOY_THRESHOLD:
                     total_tb_strikes[row.AllyCode] -= 2
+                elif ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} did not deploy in phase 3.")
             case "power_round_4":
                 if row.Score >= MINIMUM_DEPLOY_THRESHOLD:
                     total_tb_strikes[row.AllyCode] -= 2
+                elif ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} did not deploy in phase 4.")
             case "power_round_5":
                 if row.Score >= MINIMUM_DEPLOY_THRESHOLD:
                     total_tb_strikes[row.AllyCode] -= 2
+                elif ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} did not deploy in phase 5.")
             case "power_round_6":
                 if row.Score >= MINIMUM_DEPLOY_THRESHOLD:
                     total_tb_strikes[row.AllyCode] -= 2
+                elif ally_code_to_highlight == row.AllyCode:
+                    print(f"AllyCode {row.AllyCode} did not deploy in phase 6.")
             case _:  # Ignore values we don't care about.
                 continue
     return total_tb_strikes, dict(zip(data["AllyCode"],data["Name"]))
 
-def collect_manual_strikes(data: pd.DataFrame):
+def collect_manual_strikes(data: pd.DataFrame, ally_code_to_highlight):
     """
     Collects strike counts from a csv.
 
@@ -244,9 +297,10 @@ def print_all_strike_counts(strike_counts, allycode_to_name_decoder):
 def main():
     parser = argparse.ArgumentParser(description="A basic script to collate information from HotUtils reports of a SWGoH guild.")
     parser.add_argument("-reference_file", type=str, default=None, help="The path to the reference file of which guild members to include.")
+    parser.add_argument("-ally_code", type=int, default=None, help="Optional ally code to highlight")
     args = parser.parse_args()
 
-    strike_counts, allycode_to_name_decoder = gather_strikes(reference_file=args.reference_file)
+    strike_counts, allycode_to_name_decoder = gather_strikes(reference_file=args.reference_file, ally_code_to_highlight=args.ally_code)
     print("Printing strike counts:")
     print_all_strike_counts(strike_counts, allycode_to_name_decoder)
 
