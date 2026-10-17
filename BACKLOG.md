@@ -12,6 +12,8 @@ This is a list of improvements to be made.
  - Add scripts to parse the TW and TB for top performers and the "lottery" winners and post those to a manual strike adjustment file.
  - Currently checking if someone didn't deploy in TB (and thus gets a strike) works by pre-assigning strikes to everyone, then removing strikes if they did deploy. It is done this way because a deploy of 0 doesn't show up in the csv output by Hotbot. But this assumes that there is a spot to deploy each phase (which for some guilds there may not be).
  - Specific special mission checks are currently by round. E.g. if your guild attempts the Zeffo Unlock SM in phase 3, this script incorrectly checks for the attempt in phase 2.
+ - Add unit tests
+ - Add a better tracking of allycode->Name logic. Maybe make a "Member" class that contains allycode (unique id), name, and strike count. Potentially a full list of actions for each member.
 
  # Implemented
 
