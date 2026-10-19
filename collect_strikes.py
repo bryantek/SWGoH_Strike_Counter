@@ -18,6 +18,7 @@ from GUILD_THRESHOLDS import (
     MINIMUM_TW_DEFENSE_BANNERS,
     MINIMUM_TW_ALL_DEFENSE_BANNERS
 )
+from guild_member import GuildMember
 
 
 def gather_strikes(reports_dir: str="Reports", reference_file: str = None, ally_code_to_highlight: int = None):
@@ -36,11 +37,12 @@ def gather_strikes(reports_dir: str="Reports", reference_file: str = None, ally_
     Returns:
         tuple: A tuple containing a dictionary of strike counts and a dictionary of ally code to name mappings.
     """
-    guild_member_strikes: dict[int,int] = {}  # ally code as key. strike count as value.
-    allycode_to_name: dict[int,str] = {}
+    guild_members: list[GuildMember] = None  # Starts as None until we hit a reference file or ally_code_to_highlight is initialized.
+    if ally_code_to_highlight is not None:  # Then we only care about the single 
+        guild_members: list[GuildMember] = [GuildMember(ally_code_to_highlight)]
+        reference_file = None
 
     # Load CSV files (Territory War/Tickets/Territory Battle/Raid)
-    guild_members_set: set[int] = None
     csv_files = glob.glob(os.path.join(reports_dir, "*.csv"))
     for file_path in csv_files:
         file_name = os.path.basename(file_path)
@@ -50,7 +52,7 @@ def gather_strikes(reports_dir: str="Reports", reference_file: str = None, ally_
         except:  # This appears to catch the tickets file that hotutils exports.
             data = pd.read_csv(file_path, sep='\t', encoding='utf-16')
         if file_name == reference_file:  # To avoid loading it again later.
-            guild_members_set: set[int] = set(data["AllyCode"])
+            guild_members: list[GuildMember] = [GuildMember(ally_code) for ally_code in data["AllyCode"]]
         match file_name:
             case str() if file_name.startswith("tickets"):  # Daily Tickets
                 strike_counts, new_allycode_to_name = collect_ticket_strikes(data, ally_code_to_highlight)

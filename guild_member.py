@@ -24,7 +24,9 @@ class GuildMember:
         self._tb_actions: pd.DataFrame = pd.DataFrame(columns=["CurrentRoundEndTime", "Instance", "MapStatId", "Score", "SpecialResults"])
         self._tw_actions: pd.DataFrame = pd.DataFrame(columns=["CurrentRoundEndTime", "Instance", "MapStatId", "Score"])
         self._raid_actions: pd.DataFrame = pd.DataFrame(columns=["ExpireTime", "RaidId", "Score", "Rank"])
-        self._ticket_actions: pd.DataFrame = pd.DataFrame()  #This starts blank. As ticket files are processed, this will build out.
+        # This starts blank. As ticket files are processed, this will build out.
+        # Days in guild as keys.
+        self._ticket_actions: dict = {}
 
     def __repr__(self) -> str:
         """Returns an unambiguous string representation for developers and debugging."""
@@ -62,7 +64,7 @@ class GuildMember:
 # ==========================================
 if __name__ == "__main__":
     # Instantiating the object
-    obj = CustomClassName(required_param="Hello Python")
+    obj = GuildMember(ally_code=123456789)
 
     # Accessing methods and attributes
     print(obj)  # Triggers __str__
